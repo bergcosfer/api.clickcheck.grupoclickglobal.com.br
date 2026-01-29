@@ -1,17 +1,45 @@
 <?php
 /**
  * Clickcheck - API de Autenticação com Token
- * Sanitizado: Segredos movidos para config/database.php
+ * Otimizado com Robustez para HostGator/Shared Hosting
  */
 
-require_once __DIR__ . '/../config/database.php';
+// 1. Habilitar erros temporariamente para debug (Descomente se precisar ver o erro na tela)
+// error_reporting(E_ALL);
+// ini_set('display_errors', 1);
 
-error_reporting(0);
+// 2. Compatibilidade para getallheaders() em servidores que não usam Apache puro (HostGator/FPM)
+if (!function_exists('getallheaders')) {
+    function getallheaders() {
+        $headers = [];
+        foreach ($_SERVER as $name => $value) {
+            if (substr($name, 0, 5) == 'HTTP_') {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+        return $headers;
+    }
+}
 
-// Obter instância do banco de dados central
-$pdo = getDB();
+// 3. Carregar configuração com tratamento de erro
+$configPath = __DIR__ . '/../config/database.php';
+if (!file_exists($configPath)) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    die(json_encode(['error' => 'Arquivo de configuração não encontrado. Verifique a pasta config/']));
+}
+require_once $configPath;
 
-// CORS
+// 4. Obter instância do banco
+try {
+    $pdo = getDB();
+} catch (Exception $e) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    die(json_encode(['error' => 'Erro crítico ao inicializar banco: ' . $e->getMessage()]));
+}
+
+// 5. Cabeçalhos de Resposta (CORS)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -57,6 +85,9 @@ function validateToken($token) {
 }
 
 function handleLogin() {
+    if (!defined('GOOGLE_CLIENT_ID') || !defined('GOOGLE_REDIRECT_URI')) {
+        die(json_encode(['error' => 'Configurações do Google OAuth ausentes no database.php']));
+    }
     $clientId = GOOGLE_CLIENT_ID;
     $redirectUri = urlencode(GOOGLE_REDIRECT_URI);
     $scope = urlencode('email profile');
@@ -71,7 +102,7 @@ function handleLogin() {
 function handleGoogleCallback() {
     global $pdo;
     $code = $_GET['code'] ?? null;
-    $frontendUrl = FRONTEND_URL;
+    $frontendUrl = defined('FRONTEND_URL') ? FRONTEND_URL : 'https://clickcheck-grupoclickglobal-com-br.vercel.app';
     
     if (!$code) {
         header("Location: {$frontendUrl}?error=no_code");
