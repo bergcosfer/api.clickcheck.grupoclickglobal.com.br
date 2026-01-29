@@ -1,0 +1,12 @@
+# Configurações sensíveis
+config/database.php
+api/auth.php
+
+# Logs e Uploads
+logs/*.log
+uploads/*
+!uploads/.gitkeep
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db

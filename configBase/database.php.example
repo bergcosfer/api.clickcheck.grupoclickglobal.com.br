@@ -1,0 +1,16 @@
+<?php
+/**
+ * Clickcheck - Exemplo de Configuração de Segurança
+ * RENOMEIE PARA: config/database.php
+ */
+
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'clickcheck');
+define('DB_USER', 'usuario_db');
+define('DB_PASS', 'senha_db');
+
+define('GOOGLE_CLIENT_ID', 'seu_google_id');
+define('GOOGLE_CLIENT_SECRET', 'seu_google_secret');
+define('GOOGLE_REDIRECT_URI', 'https://seusite.com.br/api/auth.php?action=google-callback');
+
+define('APP_SECRET_SALT', 'mude_esta_frase_para_uma_frase_longa_e_secreta');
