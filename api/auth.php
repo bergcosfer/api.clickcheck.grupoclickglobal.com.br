@@ -71,7 +71,7 @@ function handleLogin() {
 function handleGoogleCallback() {
     global $pdo;
     $code = $_GET['code'] ?? null;
-    $frontendUrl = 'https://clickcheck-grupoclickglobal-com-facmok9as.vercel.app';
+    $frontendUrl = FRONTEND_URL;
     
     if (!$code) {
         header("Location: {$frontendUrl}?error=no_code");
