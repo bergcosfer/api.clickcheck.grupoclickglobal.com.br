@@ -173,32 +173,32 @@ function listRequests() {
 
     // Tab Filters
     if ($tab === 'recebidas') {
-        $where[] = "r.assigned_to = ? AND r.status IN ('pendente', 'em_analise')";
+        $where[] = "LOWER(r.assigned_to) = LOWER(?) AND r.status IN ('pendente', 'em_analise')";
         $params[] = $userEmail;
     } elseif ($tab === 'minhas') {
-        $where[] = "r.requested_by = ?";
+        $where[] = "LOWER(r.requested_by) = LOWER(?)";
         $params[] = $userEmail;
     } elseif ($tab === 'parcial') {
-        $where[] = "r.requested_by = ? AND r.status = 'aprovado_parcial'";
+        $where[] = "LOWER(r.requested_by) = LOWER(?) AND r.status = 'aprovado_parcial'";
         $params[] = $userEmail;
     } elseif ($tab === 'finalizadas') {
         if ($viewAll) {
              $where[] = "r.status IN ('aprovado', 'reprovado', 'aprovado_parcial')";
         } else {
-             $where[] = "(r.requested_by = ? OR r.assigned_to = ?) AND r.status IN ('aprovado', 'reprovado', 'aprovado_parcial')";
+             $where[] = "(LOWER(r.requested_by) = LOWER(?) OR LOWER(r.assigned_to) = LOWER(?)) AND r.status IN ('aprovado', 'reprovado', 'aprovado_parcial')";
              $params[] = $userEmail;
              $params[] = $userEmail;
         }
     } elseif ($tab === 'todas') {
         if (!$viewAll) {
-             $where[] = "(r.requested_by = ? OR r.assigned_to = ?)";
+             $where[] = "(LOWER(r.requested_by) = LOWER(?) OR LOWER(r.assigned_to) = LOWER(?))";
              $params[] = $userEmail;
              $params[] = $userEmail;
         }
     } else {
         // Fallback Base Permissions
         if (!$viewAll) {
-            $where[] = "(r.requested_by = ? OR r.assigned_to = ?)";
+            $where[] = "(LOWER(r.requested_by) = LOWER(?) OR LOWER(r.assigned_to) = LOWER(?))";
             $params[] = $userEmail;
             $params[] = $userEmail;
         }
@@ -209,11 +209,11 @@ function listRequests() {
         $params[] = "%$search%";
     }
     if (!empty($requested_by)) {
-        $where[] = "r.requested_by = ?";
+        $where[] = "LOWER(r.requested_by) = LOWER(?)";
         $params[] = $requested_by;
     }
     if (!empty($assigned_to)) {
-        $where[] = "r.assigned_to = ?";
+        $where[] = "LOWER(r.assigned_to) = LOWER(?)";
         $params[] = $assigned_to;
     }
     if (!empty($package_id)) {
@@ -397,7 +397,7 @@ function getStats() {
     }
     
     if (!$viewAll) {
-        $where[] = "(r.requested_by = ? OR r.assigned_to = ?)";
+        $where[] = "(LOWER(r.requested_by) = LOWER(?) OR LOWER(r.assigned_to) = LOWER(?))";
         $params[] = $userEmail;
         $params[] = $userEmail;
     }
