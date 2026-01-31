@@ -396,7 +396,11 @@ function getStats() {
         $params[] = $endDate . ' 23:59:59';
     }
     
-    if (!$viewAll) {
+    // Stricter viewAll: Only admins see everything. 
+    // Managers (gerente) and users see only their own stats by default on dashboard.
+    $isSystemAdmin = $userLevel === 'admin_principal' || $userLevel === 'admin_secundario';
+    
+    if (!$isSystemAdmin) {
         $where[] = "(LOWER(r.requested_by) = LOWER(?) OR LOWER(r.assigned_to) = LOWER(?))";
         $params[] = $userEmail;
         $params[] = $userEmail;
