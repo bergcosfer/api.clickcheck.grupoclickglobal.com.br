@@ -347,7 +347,12 @@ function revertRequest($id) {
 }
 
 function deleteRequest($id) {
-    $user = requireAuth(['admin_principal']);
+    $user = requireAuth();
+    $perms = !empty($user['permissions']) ? json_decode($user['permissions'], true) : [];
+    $canDelete = ($user['admin_level'] ?? '') === 'admin_principal' || ($perms['delete_validation'] ?? false);
+    
+    if (!$canDelete) sendError('Sem permissão para excluir', 403);
+    
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM validation_requests WHERE id = ?");
     $stmt->execute([$id]);
