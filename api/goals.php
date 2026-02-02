@@ -443,7 +443,7 @@ function getProgress() {
         }
     }
     
-    // Calcular percentual total
+    // Calcular percentual total e superação
     foreach ($userProgress as &$up) {
         if ($up['total_target'] == 0 && $up['total_achieved'] > 0) {
             $up['total_target'] = $up['total_achieved'];
@@ -451,6 +451,19 @@ function getProgress() {
         $up['total_percentage'] = $up['total_target'] > 0 
             ? round(($up['total_achieved'] / $up['total_target']) * 100) 
             : 0;
+        
+        // Superação: só ativa se TODAS as metas individuais >= 100%
+        $up['superacao_ativa'] = false;
+        if (!empty($up['goals'])) {
+            $allGoalsMet = true;
+            foreach ($up['goals'] as $goal) {
+                if ($goal['percentage'] < 100) {
+                    $allGoalsMet = false;
+                    break;
+                }
+            }
+            $up['superacao_ativa'] = $allGoalsMet && count($up['goals']) > 0;
+        }
     }
     
     // Ordenar por percentual
