@@ -131,7 +131,8 @@ try {
             break;
         case 'POST': createRequest(); break;
         case 'PUT':
-            if ($action === 'validate') validateRequest($id);
+            if ($action === 'bulk-update-date') bulkUpdateDate();
+            elseif ($action === 'validate') validateRequest($id);
             elseif ($action === 'correct') correctRequest($id);
             elseif ($action === 'revert') revertRequest($id);
             else updateRequest($id);
@@ -344,6 +345,28 @@ function revertRequest($id) {
     addHistory($id, 'reversao', "Admin reverteu status para pendente", $admin['email'] ?? 'admin');
     
     getRequest($id);
+}
+
+function bulkUpdateDate() {
+    $user = requireAuth(['admin_principal']);
+    if (($user['email'] ?? '') !== 'berg.cosfer@gmail.com') {
+        sendError('Acesso restrito ao Master Admin', 403);
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $ids = $data['ids'] ?? [];
+    $newDate = $data['new_date'] ?? null;
+
+    if (empty($ids) || !$newDate) sendError('IDs e nova data são obrigatórios');
+
+    $db = getDB();
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("UPDATE validation_requests SET created_at = ? WHERE id IN ($placeholders)");
+    
+    $params = array_merge([$newDate . ' 09:00:00'], $ids);
+    $stmt->execute($params);
+
+    sendJson(['success' => true]);
 }
 
 function deleteRequest($id) {
