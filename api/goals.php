@@ -380,8 +380,15 @@ function getProgress() {
                 $memberInfo = $memberInfoMap[$memberId] ?? null;
                 if (!$memberInfo) continue;
                 
+                // Check both numeric ID and 'manager_' prefix (if member is also a manager)
+                $member = null;
                 if (isset($userProgress[$memberId])) {
                     $member = $userProgress[$memberId];
+                } elseif (isset($userProgress['manager_' . $memberId])) {
+                    $member = $userProgress['manager_' . $memberId];
+                }
+                
+                if ($member) {
                     $memberTarget = $member['total_target'];
                     $memberAchieved = $member['total_achieved'];
                     if ($memberTarget == 0 && $memberAchieved > 0) {
@@ -393,7 +400,7 @@ function getProgress() {
                     $teamProgress[] = [
                         'user_id' => $memberId,
                         'name' => $member['nickname'] ?: $member['user_name'],
-                        'target' => $member['total_target'],
+                        'target' => $memberTarget,
                         'achieved' => $memberAchieved,
                         'percentage' => $pct,
                     ];
