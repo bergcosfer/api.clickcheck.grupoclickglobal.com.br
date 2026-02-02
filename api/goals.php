@@ -1,7 +1,7 @@
 <?php
 /**
  * Clickcheck - API de Metas
- * Versão corrigida com tratamento de erros
+ * Versão atualizada com hierarquia recursiva de gerentes
  */
 
 error_reporting(E_ALL);
@@ -161,45 +161,68 @@ function getProgress() {
         $hasManagerColumn = false;
     }
     
-    // Buscar gerentes (se a coluna existir)
+    // Buscar gerentes e construir hierarquia recursiva
     $managerInfo = [];
     $teamByManager = [];
     $memberIdsByManager = [];
+    $allManagerIds = [];
+    $userManagerMap = [];
+    $usersById = [];
     
     if ($hasManagerColumn) {
         try {
-            $stmt = $db->query("
-                SELECT DISTINCT m.manager_id, 
-                       u.id, u.email, u.full_name, u.nickname, u.profile_picture, u.profile, u.admin_level
-                FROM users m
-                JOIN users u ON m.manager_id = u.id
-                WHERE m.manager_id IS NOT NULL
-            ");
-            $managers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Buscar todos os usuários com seus manager_id
+            $stmt = $db->query("SELECT id, email, full_name, nickname, profile_picture, profile, admin_level, manager_id FROM users");
+            $allUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            foreach ($managers as $m) {
-                $managerInfo[$m['manager_id']] = [
-                    'id' => $m['id'],
-                    'email' => $m['email'],
-                    'full_name' => $m['full_name'],
-                    'nickname' => $m['nickname'],
-                    'profile_picture' => $m['profile_picture'],
-                    'profile' => $m['profile'],
-                    'admin_level' => $m['admin_level'],
-                ];
+            // Construir mapa de usuários e relações
+            foreach ($allUsers as $user) {
+                $usersById[$user['id']] = $user;
+                if ($user['manager_id']) {
+                    $userManagerMap[$user['id']] = $user['manager_id'];
+                    $allManagerIds[$user['manager_id']] = true;
+                }
             }
             
-            $stmt = $db->query("SELECT id, email, manager_id, profile FROM users WHERE manager_id IS NOT NULL");
-            $teamRelations = $stmt->fetchAll();
-            
-            foreach ($teamRelations as $member) {
-                $managerId = $member['manager_id'];
-                if (!isset($teamByManager[$managerId])) {
-                    $teamByManager[$managerId] = [];
-                    $memberIdsByManager[$managerId] = [];
+            // Função recursiva para obter todos os subordinados (diretos e indiretos)
+            $getAllSubordinates = function($managerId, $depth = 0) use (&$getAllSubordinates, $userManagerMap, $usersById) {
+                if ($depth > 10) return []; // Prevenir loops infinitos
+                $subordinates = [];
+                foreach ($userManagerMap as $userId => $mgrId) {
+                    if ($mgrId == $managerId) {
+                        $subordinates[] = $userId;
+                        // Recursivamente adicionar subordinados deste subordinado
+                        $subordinates = array_merge($subordinates, $getAllSubordinates($userId, $depth + 1));
+                    }
                 }
-                $teamByManager[$managerId][] = $member['email'];
-                $memberIdsByManager[$managerId][] = $member['id'];
+                return $subordinates;
+            };
+            
+            // Construir info dos gerentes e seus subordinados (recursivos)
+            foreach (array_keys($allManagerIds) as $managerId) {
+                if (isset($usersById[$managerId])) {
+                    $mgr = $usersById[$managerId];
+                    $managerInfo[$managerId] = [
+                        'id' => $mgr['id'],
+                        'email' => $mgr['email'],
+                        'full_name' => $mgr['full_name'],
+                        'nickname' => $mgr['nickname'],
+                        'profile_picture' => $mgr['profile_picture'],
+                        'profile' => $mgr['profile'],
+                        'admin_level' => $mgr['admin_level'],
+                    ];
+                    
+                    // Obter TODOS os subordinados (recursivamente)
+                    $allSubIds = $getAllSubordinates($managerId);
+                    $memberIdsByManager[$managerId] = $allSubIds;
+                    
+                    $teamByManager[$managerId] = [];
+                    foreach ($allSubIds as $subId) {
+                        if (isset($usersById[$subId])) {
+                            $teamByManager[$managerId][] = $usersById[$subId]['email'];
+                        }
+                    }
+                }
             }
         } catch (Exception $e) {
             // Se der erro, continua sem gerentes
@@ -270,7 +293,6 @@ function getProgress() {
         
         $achieved = $counts['approved'];
         $target = (int)$goal['target_count'];
-        // Se target=0 mas achieved>0, usar achieved como target (100%)
         if ($target == 0 && $achieved > 0) {
             $target = $achieved;
         }
@@ -307,7 +329,7 @@ function getProgress() {
         }
     }
     
-    // Criar entradas para gerentes (se houver)
+    // Criar entradas para gerentes com metas próprias + equipe combinada
     foreach ($teamByManager as $managerId => $memberEmails) {
         $teamTarget = 0;
         $teamAchieved = 0;
@@ -315,7 +337,6 @@ function getProgress() {
         $memberNames = [];
         
         foreach ($memberIdsByManager[$managerId] as $memberId) {
-            // Incluir membro mesmo sem metas
             $memberInfo = $memberInfoMap[$memberId] ?? null;
             if (!$memberInfo) continue;
             
@@ -344,7 +365,6 @@ function getProgress() {
         }
         
         foreach ($teamGoals as &$tg) {
-            // Se target=0 mas achieved>0, usar achieved como target
             if ($tg['target'] == 0 && $tg['achieved'] > 0) {
                 $tg['target'] = $tg['achieved'];
             }
@@ -353,6 +373,7 @@ function getProgress() {
         
         if (isset($managerInfo[$managerId]) && count($memberNames) > 0) {
             $info = $managerInfo[$managerId];
+            
             // Criar detalhes de cada membro para exibir no card do gerente
             $teamProgress = [];
             foreach ($memberIdsByManager[$managerId] as $memberId) {
@@ -363,7 +384,6 @@ function getProgress() {
                     $member = $userProgress[$memberId];
                     $memberTarget = $member['total_target'];
                     $memberAchieved = $member['total_achieved'];
-                    // Se target=0 mas achieved>0, usar achieved como target
                     if ($memberTarget == 0 && $memberAchieved > 0) {
                         $memberTarget = $memberAchieved;
                     }
@@ -378,7 +398,6 @@ function getProgress() {
                         'percentage' => $pct,
                     ];
                 } else {
-                    // Membro sem metas - mostrar com 0/0
                     $teamProgress[] = [
                         'user_id' => $memberId,
                         'name' => $memberInfo['nickname'] ?: $memberInfo['full_name'],
@@ -387,6 +406,16 @@ function getProgress() {
                         'percentage' => 0,
                     ];
                 }
+            }
+            
+            // Incluir metas pessoais do gerente (se tiver)
+            $managerOwnGoals = [];
+            $managerOwnTarget = 0;
+            $managerOwnAchieved = 0;
+            if (isset($userProgress[$managerId])) {
+                $managerOwnGoals = $userProgress[$managerId]['goals'];
+                $managerOwnTarget = $userProgress[$managerId]['total_target'];
+                $managerOwnAchieved = $userProgress[$managerId]['total_achieved'];
             }
             
             $userProgress['manager_' . $managerId] = [
@@ -400,16 +429,22 @@ function getProgress() {
                 'is_manager' => true,
                 'team_members' => $memberNames,
                 'team_progress' => $teamProgress,
+                // Combinar metas pessoais + metas da equipe
                 'goals' => array_values($teamGoals),
-                'total_target' => $teamTarget,
-                'total_achieved' => $teamAchieved,
+                'own_goals' => $managerOwnGoals,
+                'total_target' => $teamTarget + $managerOwnTarget,
+                'total_achieved' => $teamAchieved + $managerOwnAchieved,
             ];
+            
+            // Remover o card individual do gerente se ele também é um membro com metas
+            if (isset($userProgress[$managerId])) {
+                unset($userProgress[$managerId]);
+            }
         }
     }
     
     // Calcular percentual total
     foreach ($userProgress as &$up) {
-        // Se total_target=0 mas total_achieved>0, usar achieved como target (100%)
         if ($up['total_target'] == 0 && $up['total_achieved'] > 0) {
             $up['total_target'] = $up['total_achieved'];
         }
