@@ -329,6 +329,20 @@ function getProgress() {
         }
     }
     
+    // IMPORTANTE: Salvar snapshot dos totais de cada usuário ANTES de criar cards de gerente
+    // Isso garante que mesmo se um membro é gerente (como Jessica), seus dados ficam disponiveis
+    // para o gerente superior (como Bruno)
+    $userTotalsSnapshot = [];
+    foreach ($userProgress as $uid => $up) {
+        $userTotalsSnapshot[$uid] = [
+            'total_target' => $up['total_target'],
+            'total_achieved' => $up['total_achieved'],
+            'goals' => $up['goals'],
+            'nickname' => $up['nickname'],
+            'user_name' => $up['user_name'],
+        ];
+    }
+    
     // Criar entradas para gerentes com metas próprias + equipe combinada
     foreach ($teamByManager as $managerId => $memberEmails) {
         $teamTarget = 0;
@@ -342,8 +356,9 @@ function getProgress() {
             
             $memberNames[] = $memberInfo['nickname'] ?: $memberInfo['full_name'];
             
-            if (isset($userProgress[$memberId])) {
-                $member = $userProgress[$memberId];
+            // USAR SNAPSHOT ao invés de $userProgress para evitar problemas de ordem
+            if (isset($userTotalsSnapshot[$memberId])) {
+                $member = $userTotalsSnapshot[$memberId];
                 $teamTarget += $member['total_target'];
                 $teamAchieved += $member['total_achieved'];
                 
@@ -380,12 +395,10 @@ function getProgress() {
                 $memberInfo = $memberInfoMap[$memberId] ?? null;
                 if (!$memberInfo) continue;
                 
-                // Check both numeric ID and 'manager_' prefix (if member is also a manager)
+                // USAR SNAPSHOT para garantir que dados de gerentes-membros estejam disponiveis
                 $member = null;
-                if (isset($userProgress[$memberId])) {
-                    $member = $userProgress[$memberId];
-                } elseif (isset($userProgress['manager_' . $memberId])) {
-                    $member = $userProgress['manager_' . $memberId];
+                if (isset($userTotalsSnapshot[$memberId])) {
+                    $member = $userTotalsSnapshot[$memberId];
                 }
                 
                 if ($member) {
