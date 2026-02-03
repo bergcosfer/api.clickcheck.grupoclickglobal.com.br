@@ -330,8 +330,6 @@ function getProgress() {
     }
     
     // IMPORTANTE: Salvar snapshot dos totais de cada usuário ANTES de criar cards de gerente
-    // Isso garante que mesmo se um membro é gerente (como Jessica), seus dados ficam disponiveis
-    // para o gerente superior (como Bruno)
     $userTotalsSnapshot = [];
     foreach ($userProgress as $uid => $up) {
         $userTotalsSnapshot[$uid] = [
@@ -343,8 +341,30 @@ function getProgress() {
         ];
     }
     
+    // ORDENAR gerentes por profundidade (folhas primeiro, depois pais)
+    // Isso garante que quando Bruno é processado, Jessica já tem seus totais calculados
+    $getManagerDepth = function($managerId) use ($userManagerMap) {
+        $depth = 0;
+        while (isset($userManagerMap[$managerId])) {
+            $managerId = $userManagerMap[$managerId];
+            $depth++;
+        }
+        return $depth;
+    };
+    
+    $managerIds = array_keys($teamByManager);
+    usort($managerIds, function($a, $b) use ($getManagerDepth) {
+        // Ordenar por profundidade DECRESCENTE (mais profundo primeiro = folhas)
+        return $getManagerDepth($b) - $getManagerDepth($a);
+    });
+    
+    // Armazenar totais calculados de cada gerente para uso por gerentes superiores
+    $managerCalculatedTotals = [];
+    
     // Criar entradas para gerentes com metas próprias + equipe combinada
-    foreach ($teamByManager as $managerId => $memberEmails) {
+    // Agora em ORDEM HIERÁRQUICA: folhas primeiro
+    foreach ($managerIds as $managerId) {
+        $memberEmails = $teamByManager[$managerId];
         $teamTarget = 0;
         $teamAchieved = 0;
         $teamGoals = [];
@@ -356,9 +376,16 @@ function getProgress() {
             
             $memberNames[] = $memberInfo['nickname'] ?: $memberInfo['full_name'];
             
-            // USAR SNAPSHOT ao invés de $userProgress para evitar problemas de ordem
+            // Verificar: snapshot (usuario com metas), OU totais de sub-gerente já calculados
+            $member = null;
             if (isset($userTotalsSnapshot[$memberId])) {
                 $member = $userTotalsSnapshot[$memberId];
+            } elseif (isset($managerCalculatedTotals[$memberId])) {
+                // Este membro é um sub-gerente já processado (ex: Jessica)
+                $member = $managerCalculatedTotals[$memberId];
+            }
+            
+            if ($member) {
                 $teamTarget += $member['total_target'];
                 $teamAchieved += $member['total_achieved'];
                 
@@ -395,10 +422,12 @@ function getProgress() {
                 $memberInfo = $memberInfoMap[$memberId] ?? null;
                 if (!$memberInfo) continue;
                 
-                // USAR SNAPSHOT para garantir que dados de gerentes-membros estejam disponiveis
+                // Verificar snapshot OU totais de sub-gerente já calculados
                 $member = null;
                 if (isset($userTotalsSnapshot[$memberId])) {
                     $member = $userTotalsSnapshot[$memberId];
+                } elseif (isset($managerCalculatedTotals[$memberId])) {
+                    $member = $managerCalculatedTotals[$memberId];
                 }
                 
                 if ($member) {
@@ -454,6 +483,15 @@ function getProgress() {
                 'own_goals' => $managerOwnGoals,
                 'total_target' => $teamTarget + $managerOwnTarget,
                 'total_achieved' => $teamAchieved + $managerOwnAchieved,
+            ];
+            
+            // Salvar os totais calculados deste gerente para uso por gerentes superiores
+            $managerCalculatedTotals[$managerId] = [
+                'total_target' => $teamTarget + $managerOwnTarget,
+                'total_achieved' => $teamAchieved + $managerOwnAchieved,
+                'goals' => array_values($teamGoals),
+                'nickname' => $info['nickname'],
+                'user_name' => $info['full_name'],
             ];
             
             // Remover o card individual do gerente se ele também é um membro com metas
