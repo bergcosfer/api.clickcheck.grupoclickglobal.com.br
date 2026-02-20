@@ -122,6 +122,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id = $_GET['id'] ?? null;
 $action = $_GET['action'] ?? null;
 
+// Debug logging
+error_log("Requests API: Method=$method, Action=$action, ID=$id");
+
 try {
     switch ($method) {
         case 'GET':
@@ -131,16 +134,23 @@ try {
             break;
         case 'POST': createRequest(); break;
         case 'PUT':
-            if ($action === 'bulk-update-date') bulkUpdateDate();
+            if ($action === 'bulk-update-date') {
+                error_log("Entering bulkUpdateDate");
+                bulkUpdateDate();
+            }
             elseif ($action === 'validate') validateRequest($id);
             elseif ($action === 'correct') correctRequest($id);
             elseif ($action === 'revert') revertRequest($id);
-            else updateRequest($id);
+            else {
+                error_log("Falling through to updateRequest for action: $action");
+                updateRequest($id);
+            }
             break;
         case 'DELETE': deleteRequest($id); break;
         default: sendError('Método não suportado', 405);
     }
 } catch (Exception $e) {
+    error_log("Requests API Error: " . $e->getMessage());
     sendError('Erro interno: ' . $e->getMessage(), 500);
 }
 
