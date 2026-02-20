@@ -95,7 +95,14 @@ function handleLogin() {
     $authUrl = "https://accounts.google.com/o/oauth2/auth?" .
         "client_id={$clientId}&redirect_uri={$redirectUri}&response_type=code&scope={$scope}&access_type=offline";
     
-    header("Location: {$authUrl}");
+    // Usar HTML redirect em vez de header() para evitar bloqueio do ModSecurity
+    header('Content-Type: text/html; charset=UTF-8');
+    echo '<!DOCTYPE html><html><head>';
+    echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($authUrl, ENT_QUOTES) . '">';
+    echo '</head><body>';
+    echo '<script>window.location.href="' . addslashes($authUrl) . '";</script>';
+    echo '<p>Redirecionando para login...</p>';
+    echo '</body></html>';
     exit;
 }
 

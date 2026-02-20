@@ -1,8 +1,0 @@
-# Desabilitar ModSecurity APENAS para auth.php (Google OAuth)
-# O Google OAuth envia tokens longos que causam falsos positivos no ModSecurity
-# As demais rotas da API continuam protegidas
-<IfModule mod_security2.c>
-    <Files "auth.php">
-        SecRuleEngine Off
-    </Files>
-</IfModule>
