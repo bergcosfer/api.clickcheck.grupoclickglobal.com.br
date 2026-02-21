@@ -62,6 +62,9 @@ switch ($action) {
     case 'google-callback':
         handleGoogleCallback();
         break;
+    case 'google-callback-post':
+        handleGoogleCallbackPost();
+        break;
     default:
         echo json_encode(['error' => 'Ação não encontrada']);
 }
@@ -250,4 +253,79 @@ function getPermissionsForUser($user) {
     
     $profile = $user['profile'] ?? 'validador';
     return $profilePermissions[$profile] ?? $profilePermissions['validador'];
+}
+
+function handleGoogleCallbackPost() {
+    global $pdo;
+    
+    // Ler o body JSON enviado pelo React
+    $input = json_decode(file_get_contents('php://input'), true);
+    $code = $input['code'] ?? null;
+    $redirectUriFrontend = $input['redirect_uri'] ?? null;
+    
+    if (!$code || !$redirectUriFrontend) {
+        http_response_code(400);
+        echo json_encode(['error' => 'no_code_or_uri']);
+        exit;
+    }
+    
+    $clientId = GOOGLE_CLIENT_ID;
+    $clientSecret = GOOGLE_CLIENT_SECRET;
+    
+    // Trocar código por token
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'code' => $code,
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'redirect_uri' => $redirectUriFrontend,
+        'grant_type' => 'authorization_code'
+    ]));
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    $tokenData = json_decode($response, true);
+    
+    if (!isset($tokenData['access_token'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'token_failed', 'details' => $tokenData]);
+        exit;
+    }
+    
+    // Obter informações do usuário
+    $ch = curl_init('https://www.googleapis.com/oauth2/v2/userinfo');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer {$tokenData['access_token']}"]);
+    $userResponse = curl_exec($ch);
+    curl_close($ch);
+    
+    $googleUser = json_decode($userResponse, true);
+    
+    if (!isset($googleUser['email'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'no_email']);
+        exit;
+    }
+    
+    // Criar ou atualizar usuário
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$googleUser['email']]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        $stmt = $pdo->prepare("INSERT INTO users (email, full_name, google_id, profile_picture) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$googleUser['email'], $googleUser['name'] ?? '', $googleUser['id'], $googleUser['picture'] ?? '']);
+        $userId = $pdo->lastInsertId();
+    } else {
+        $userId = $user['id'];
+        if (!empty($googleUser['picture']) && $googleUser['picture'] !== $user['profile_picture']) {
+            $stmt = $pdo->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
+            $stmt->execute([$googleUser['picture'], $userId]);
+        }
+    }
+    
+    $token = generateToken($userId);
+    echo json_encode(['success' => true, 'token' => $token]);
+    exit;
 }
