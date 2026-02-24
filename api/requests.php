@@ -250,8 +250,8 @@ function listRequests() {
         $stmt->execute($params);
         $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($requests as &$req) {
-            $req['content_urls'] = json_decode($req['content_urls'], true) ?? [];
-            $req['validation_per_link'] = json_decode($req['validation_per_link'], true) ?? [];
+            $req['content_urls'] = json_decode($req['content_urls'] ?? '[]', true) ?? [];
+            $req['validation_per_link'] = json_decode($req['validation_per_link'] ?? '[]', true) ?? [];
         }
         sendJson($requests);
     }
@@ -267,8 +267,8 @@ function listRequests() {
     $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     foreach ($requests as &$req) {
-        $req['content_urls'] = json_decode($req['content_urls'], true) ?? [];
-        $req['validation_per_link'] = json_decode($req['validation_per_link'], true) ?? [];
+        $req['content_urls'] = json_decode($req['content_urls'] ?? '[]', true) ?? [];
+        $req['validation_per_link'] = json_decode($req['validation_per_link'] ?? '[]', true) ?? [];
     }
     
     sendJson([
@@ -289,8 +289,8 @@ function getRequest($id) {
     $stmt->execute([$id]);
     $req = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$req) sendError('Não encontrado', 404);
-    $req['content_urls'] = json_decode($req['content_urls'], true) ?? [];
-    $req['validation_per_link'] = json_decode($req['validation_per_link'], true) ?? [];
+    $req['content_urls'] = json_decode($req['content_urls'] ?? '[]', true) ?? [];
+    $req['validation_per_link'] = json_decode($req['validation_per_link'] ?? '[]', true) ?? [];
     sendJson($req);
 }
 
