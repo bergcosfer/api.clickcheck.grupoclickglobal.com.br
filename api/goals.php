@@ -534,7 +534,7 @@ function getProgress() {
 
 function createGoal() {
     $manager = requireManager();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     if (empty($data['user_id']) || empty($data['package_id']) || !isset($data['target_count'])) {
         http_response_code(400);
@@ -570,7 +570,7 @@ function updateGoal($id) {
         return;
     }
     
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     if (!isset($data['target_count'])) {
         http_response_code(400);

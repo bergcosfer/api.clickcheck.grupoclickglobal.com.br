@@ -112,7 +112,7 @@ function getPackage($id) {
 
 function createPackage() {
     $user = requireAuth('admin_principal');
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     if (empty($data['name']) || empty($data['type'])) {
         http_response_code(400);
@@ -137,7 +137,7 @@ function createPackage() {
 
 function updatePackage($id) {
     requireAuth('admin_principal');
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     $fields = [];
     $values = [];

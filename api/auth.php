@@ -259,7 +259,7 @@ function handleGoogleCallbackPost() {
     global $pdo;
     
     // Ler o body JSON enviado pelo React
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonPayload();
     $code = $input['code'] ?? null;
     $redirectUriFrontend = $input['redirect_uri'] ?? null;
     

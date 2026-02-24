@@ -296,7 +296,7 @@ function getRequest($id) {
 
 function createRequest() {
     $user = requireAuth(['user', 'admin_principal']);
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     if (empty($data['title']) || empty($data['package_id']) || empty($data['assigned_to'])) sendError('Faltam dados');
     
     $db = getDB();
@@ -315,7 +315,7 @@ function createRequest() {
 
 function validateRequest($id) {
     $user = requireAuth();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $validationPerLink = $data['validation_per_link'] ?? [];
     $approved = 0;
     foreach ($validationPerLink as $v) {
@@ -335,7 +335,7 @@ function validateRequest($id) {
 
 function correctRequest($id) {
     $user = requireAuth();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $db = getDB();
     $stmt = $db->prepare("UPDATE validation_requests SET status = 'pendente', content_urls = ?, return_count = return_count + 1, validation_per_link = NULL WHERE id = ?");
     $stmt->execute([json_encode($data['content_urls'] ?? []), $id]);
@@ -363,7 +363,7 @@ function bulkUpdateDate() {
         sendError('Acesso restrito ao Master Admin', 403);
     }
 
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $ids = $data['ids'] ?? [];
     $newDate = $data['new_date'] ?? null;
 
@@ -394,7 +394,7 @@ function deleteRequest($id) {
 
 function updateRequest($id) {
     $user = requireAuth();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $fields = []; $values = [];
     foreach (['title', 'description', 'priority', 'assigned_to', 'status'] as $f) {
         if (isset($data[$f])) { $fields[] = "$f = ?"; $values[] = $data[$f]; }

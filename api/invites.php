@@ -81,7 +81,7 @@ function listInvites() {
 
 function createInvite() {
     $admin = requireAdmin();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     if (empty($data['email'])) {
         http_response_code(400);
@@ -132,7 +132,7 @@ function createInvite() {
 }
 
 function verifyInvite() {
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $token = $data['token'] ?? '';
     
     if (empty($token)) {

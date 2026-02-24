@@ -164,7 +164,7 @@ function listUsers() {
 function createUser() {
     global $PROFILES;
     requireAdmin();
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     
     if (empty($data['email'])) {
         http_response_code(400);
@@ -213,7 +213,7 @@ function updateUser($id) {
         return;
     }
     
-    $data = json_decode(file_get_contents('php://input'), true);
+    $data = getJsonPayload();
     $fields = [];
     $values = [];
     
