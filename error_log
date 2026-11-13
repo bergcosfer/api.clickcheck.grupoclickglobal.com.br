@@ -1,0 +1,5 @@
+[09-Oct-2026 13:58:30 America/Fortaleza] PHP Warning:  require_once(/home1/linden03/clickcheck.grupoclickglobal.com.br/api/config/database.php): Failed to open stream: No such file or directory in /home1/linden03/clickcheck.grupoclickglobal.com.br/migrate_history.php on line 2
+[09-Oct-2026 13:58:30 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/linden03/clickcheck.grupoclickglobal.com.br/api/config/database.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home1/linden03/clickcheck.grupoclickglobal.com.br/migrate_history.php:2
+Stack trace:
+#0 {main}
+  thrown in /home1/linden03/clickcheck.grupoclickglobal.com.br/migrate_history.php on line 2

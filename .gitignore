@@ -9,3 +9,8 @@ uploads/*
 # Arquivos de sistema
 .DS_Store
 Thumbs.db
+config/--database.php
+.env
+*.pem
+*.key
+credentials.json
