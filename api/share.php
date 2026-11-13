@@ -55,7 +55,10 @@ if (!empty($req['client_id'])) {
     $channelId = $c['clickup_channel_id'] ?? null;
 }
 if ($channelId) {
-    clickup_send_message($channelId, "🔔 Nova validação aguardando o cliente: **{$req['title']}**\n{$publicUrl}");
+    $mentions = clickup_mentions_for_request($req);
+    $text = "🔔 Nova validação aguardando o cliente: **{$req['title']}**\n{$publicUrl}";
+    if ($mentions !== '') $text .= "\n\n" . $mentions;
+    clickup_send_message($channelId, $text);
 }
 
 sendJson([

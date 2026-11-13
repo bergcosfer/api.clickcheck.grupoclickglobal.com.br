@@ -78,3 +78,58 @@ function clickup_send_message($channelId, $text) {
     }
     return ['error' => "ClickUp enviar mensagem falhou (HTTP $code): " . ($error ?: $response)];
 }
+
+/**
+ * Mapeia email -> ClickUp user (id + username), usando o endpoint v2 /team.
+ * Cache em variável estática por request.
+ */
+function clickup_workspace_members() {
+    static $members = null;
+    if ($members !== null) return $members;
+    $members = [];
+    $ch = curl_init('https://api.clickup.com/api/v2/team');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: ' . CLICKUP_API_TOKEN]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    $response = curl_exec($ch);
+    $data = json_decode($response, true);
+    foreach (($data['teams'][0]['members'] ?? []) as $m) {
+        $u = $m['user'] ?? [];
+        if (!empty($u['email']) && !empty($u['id'])) {
+            $members[strtolower($u['email'])] = [
+                'id' => $u['id'],
+                'username' => $u['username'] ?? $u['email'],
+            ];
+        }
+    }
+    return $members;
+}
+
+/**
+ * Retorna a string de @menção de um usuário do ClickUp, ou null se não encontrado.
+ * Formato: [@username](#user_mention#user_id) — verificar se renderiza como menção no app.
+ */
+function clickup_mention_by_email($email) {
+    if (!$email) return null;
+    $members = clickup_workspace_members();
+    $m = $members[strtolower($email)] ?? null;
+    if (!$m) return null;
+    return '[@' . $m['username'] . '](#user_mention#' . $m['id'] . ')';
+}
+
+/**
+ * Monta as @menções dos 3 envolvidos: analista, designer e gestor.
+ */
+function clickup_mentions_for_request($req) {
+    $emails = [];
+    foreach (['requested_by', 'designer', 'assigned_to'] as $f) {
+        $e = $req[$f] ?? null;
+        if ($e && !in_array($e, $emails, true)) $emails[] = $e;
+    }
+    $mentions = [];
+    foreach ($emails as $email) {
+        $m = clickup_mention_by_email($email);
+        if ($m) $mentions[] = $m;
+    }
+    return implode(' ', $mentions);
+}

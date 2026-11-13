@@ -74,6 +74,8 @@ if ($method === 'POST') {
         foreach ($annotations as $i => $a) {
             $text .= "\n📌 Anotação " . ($i + 1) . ": " . ($a['comment'] ?? '');
         }
+        $mentions = clickup_mentions_for_request($req);
+        if ($mentions !== '') $text .= "\n\n" . $mentions;
         clickup_send_message($req['clickup_channel_id'], $text);
     }
 
