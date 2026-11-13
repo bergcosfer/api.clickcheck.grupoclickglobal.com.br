@@ -304,12 +304,13 @@ function createRequest() {
     $stmt->execute([$data['package_id']]);
     $pkg = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    $stmt = $db->prepare("INSERT INTO validation_requests (title, description, description_images, package_id, package_name, content_urls, priority, assigned_to, requested_by, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO validation_requests (title, description, description_images, package_id, package_name, content_urls, priority, assigned_to, requested_by, client_id, designer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $data['title'], $data['description'] ?? '', json_encode($data['description_images'] ?? []),
         $data['package_id'], $pkg['name'] ?? '', json_encode($data['content_urls'] ?? []),
         $data['priority'] ?? 'normal', $data['assigned_to'], $user['email'],
-        !empty($data['client_id']) ? (int)$data['client_id'] : null
+        !empty($data['client_id']) ? (int)$data['client_id'] : null,
+        $data['designer'] ?? null
     ]);
     getRequest($db->lastInsertId());
 }

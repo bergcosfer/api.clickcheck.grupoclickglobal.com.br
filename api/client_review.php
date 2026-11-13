@@ -42,6 +42,7 @@ if ($method === 'GET') {
         'description_images' => json_decode($req['description_images'] ?? '[]', true) ?? [],
         'client_status' => $req['client_status'],
         'client_feedback' => $req['client_feedback'],
+        'client_annotations' => json_decode($req['client_annotations'] ?? '[]', true) ?? [],
         'client_name' => $req['client_name'],
     ]);
 }
@@ -50,16 +51,19 @@ if ($method === 'POST') {
     $data = getJsonPayload();
     $decision = $data['decision'] ?? null;
     $feedback = trim($data['feedback'] ?? '');
+    $annotations = $data['annotations'] ?? [];
 
     if (!in_array($decision, ['aprovado', 'reprovado'], true)) sendError('Decisão inválida');
-    if ($decision === 'reprovado' && $feedback === '') sendError('Descreva o que precisa ser ajustado');
+    if ($decision === 'reprovado' && $feedback === '' && empty($annotations)) {
+        sendError('Descreva o que precisa ser ajustado ou marque uma região da imagem');
+    }
 
     $stmt = $db->prepare(
         "UPDATE validation_requests
-         SET client_status = ?, client_feedback = ?, client_reviewed_at = NOW()
+         SET client_status = ?, client_feedback = ?, client_annotations = ?, client_reviewed_at = NOW()
          WHERE id = ?"
     );
-    $stmt->execute([$decision, $feedback, $req['id']]);
+    $stmt->execute([$decision, $feedback, json_encode($annotations, JSON_UNESCAPED_UNICODE), $req['id']]);
 
     addHistory($req['id'], 'cliente', "Cliente {$decision}: {$feedback}", 'cliente');
 
@@ -67,6 +71,9 @@ if ($method === 'POST') {
         $emoji = $decision === 'aprovado' ? '✅' : '❌';
         $text = "{$emoji} Cliente **{$decision}** a validação \"{$req['title']}\"";
         if ($feedback !== '') $text .= "\nFeedback: {$feedback}";
+        foreach ($annotations as $i => $a) {
+            $text .= "\n📌 Anotação " . ($i + 1) . ": " . ($a['comment'] ?? '');
+        }
         clickup_send_message($req['clickup_channel_id'], $text);
     }
 
